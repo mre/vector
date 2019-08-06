@@ -105,16 +105,3 @@ fn sd_result(code: c_int) -> IOResult<c_int> {
         _ => Ok(code),
     }
 }
-
-/*
-fn main() {
-    let mut container: Container<Example> = unsafe { Container::load("libexample.dylib") }.unwrap();
-    container.do_something();
-    let _result = unsafe { container.add_one(5) };
-    *container.global_count_mut() += 1;
-
-    //symbols are released together with library handle
-    //this prevents dangling symbols
-    drop(container);
-}
- */
