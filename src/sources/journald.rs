@@ -1,7 +1,7 @@
 use crate::{
     event,
     event::{Event, LogEvent, ValueKind},
-    topology::config::{DataType, SourceConfig},
+    topology::config::{DataType, GlobalOptions, SourceConfig},
 };
 use chrono::TimeZone;
 use futures::{future, sync::mpsc, Future, Sink};
@@ -39,7 +39,12 @@ fn map_bool<T>(flag: bool, t_value: T, f_value: T) -> T {
 
 #[typetag::serde(name = "journald")]
 impl SourceConfig for JournaldConfig {
-    fn build(&self, out: mpsc::Sender<Event>) -> Result<super::Source, String> {
+    fn build(
+        &self,
+        _name: &str,
+        _globals: &GlobalOptions,
+        out: mpsc::Sender<Event>,
+    ) -> Result<super::Source, String> {
         let flags = map_bool(
             self.current_runtime_only.unwrap_or(true),
             journald::SD_JOURNAL_RUNTIME_ONLY,
