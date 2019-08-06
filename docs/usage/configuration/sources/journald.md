@@ -15,7 +15,7 @@ description: Ingests data through log records from journald and outputs `log` ev
 ![][images.journald_source]
 
 {% hint style="warning" %}
-The `journald` sink is in beta. Please see the current
+The `journald` source is in beta. Please see the current
 [enhancements][url.journald_source_enhancements] and
 [bugs][url.journald_source_bugs] for known issues.
 We kindly ask that you [add any missing issues][url.new_journald_source_issue]
@@ -34,7 +34,7 @@ The `journald` source ingests data through log records from journald and outputs
   
   current_runtime_only = true # default
   local_only = true # default
-  units = ["ntpd", "sysinit.target"] # default
+  units = ["ntpd", "sysinit.target"] # no default
 ```
 {% endcode-tabs-item %}
 {% code-tabs-item title="vector.toml (schema)" %}
@@ -46,6 +46,37 @@ The `journald` source ingests data through log records from journald and outputs
   units = ["<string>", ...]
 ```
 {% endcode-tabs-item %}
+{% code-tabs-item title="vector.toml (specification)" %}
+```coffeescript
+[sources.journald_source]
+  # The component type
+  # 
+  # * required
+  # * no default
+  # * must be: "journald"
+  type = "journald"
+
+  # Include only entries from the current runtime (boot)
+  # 
+  # * optional
+  # * default: true
+  current_runtime_only = true
+
+  # Include only entries from the local system
+  # 
+  # * optional
+  # * default: true
+  local_only = true
+
+  # The list of units names to monitor. If empty or not present, all units are
+  # accepted. Unit names lacking a `"."` will have `".service"` appended to make
+  # them a valid service unit name.
+  # 
+  # * optional
+  # * no default
+  units = ["ntpd", "sysinit.target"]
+```
+{% endcode-tabs-item %}
 {% endcode-tabs %}
 
 ## Options
@@ -53,7 +84,7 @@ The `journald` source ingests data through log records from journald and outputs
 | Key  | Type  | Description |
 |:-----|:-----:|:------------|
 | **REQUIRED** | | |
-| `type` | `string` | The component type<br />`required` `enum: "journald"` |
+| `type` | `string` | The component type<br />`required` `must be: "journald"` |
 | **OPTIONAL** | | |
 | `current_runtime_only` | `bool` | Include only entries from the current runtime (boot)<br />`default: true` |
 | `local_only` | `bool` | Include only entries from the local system<br />`default: true` |
@@ -155,9 +186,10 @@ The best place to start with troubleshooting is to check the
 If the [Troubleshooting Guide][docs.troubleshooting] does not resolve your
 issue, please:
 
-1. Check for any [open sink issues][url.journald_source_issues].
-2. [Search the forum][url.search_forum] for any similar issues.
-2. Reach out to the [community][url.community] for help.
+1. Check for any [open `journald_source` issues][url.journald_source_issues].
+2. If encountered a bug, please [file a bug report][url.new_journald_source_bug].
+3. If encountered a missing feature, please [file a feature request][url.new_journald_source_enhancement].
+4. If you need help, [join our chat/forum community][url.vector_chat]. You can post a question and search previous questions.
 
 ## Resources
 
@@ -167,16 +199,17 @@ issue, please:
 
 [docs.best_effort_delivery]: ../../../about/guarantees.md#best-effort-delivery
 [docs.configuration.environment-variables]: ../../../usage/configuration#environment-variables
-[docs.log_event]: ../../../about/data-model.md#log
+[docs.log_event]: ../../../about/data-model/log.md
 [docs.monitoring_logs]: ../../../usage/administration/monitoring.md#logs
 [docs.regex_parser_transform]: ../../../usage/configuration/transforms/regex_parser.md
 [docs.transforms]: ../../../usage/configuration/transforms
 [docs.troubleshooting]: ../../../usage/guides/troubleshooting.md
 [images.journald_source]: ../../../assets/journald-source.svg
-[url.community]: https://vector.dev/community
 [url.journald_source_bugs]: https://github.com/timberio/vector/issues?q=is%3Aopen+is%3Aissue+label%3A%22Source%3A+journald%22+label%3A%22Type%3A+Bug%22
 [url.journald_source_enhancements]: https://github.com/timberio/vector/issues?q=is%3Aopen+is%3Aissue+label%3A%22Source%3A+journald%22+label%3A%22Type%3A+Enhancement%22
 [url.journald_source_issues]: https://github.com/timberio/vector/issues?q=is%3Aopen+is%3Aissue+label%3A%22Source%3A+journald%22
 [url.journald_source_source]: https://github.com/timberio/vector/tree/master/src/sources/journald.rs
+[url.new_journald_source_bug]: https://github.com/timberio/vector/issues/new?labels=Source%3A+journald&labels=Type%3A+Bug
+[url.new_journald_source_enhancement]: https://github.com/timberio/vector/issues/new?labels=Source%3A+journald&labels=Type%3A+Enhancement
 [url.new_journald_source_issue]: https://github.com/timberio/vector/issues/new?labels=Source%3A+journald
-[url.search_forum]: https://forum.vector.dev/search?expanded=true
+[url.vector_chat]: https://chat.vector.dev

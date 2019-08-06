@@ -180,7 +180,7 @@ Vector package installs, generally located at `/etc/vector/vector.spec.yml`:
   # them a valid service unit name.
   # 
   # * optional
-  # * default: []
+  # * no default
   units = ["ntpd", "sysinit.target"]
 
 [sources.statsd]
