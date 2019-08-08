@@ -12,7 +12,7 @@
 # It is the source of truth used to generate docs, config examples, and more.
 # Once changed, please run to sync everything:
 #
-#     make generate-docs`
+#     make generate
 #
 
 # ------------------------------------------------------------------------------
@@ -39,18 +39,28 @@ guides = []
 resources = []
 through_description = "one or more local files"
 
+[sources.file.options.data_dir]
+type = "string"
+examples = ["/var/lib/vector"]
+null = true
+description = """\
+The directory used to persist file checkpoint positions. By default, the \
+global `data_dir` is used. Please make sure the Vector project has write \
+permissions to this dir.\
+"""
+
 [sources.file.options.include]
 type = "[string]"
-null = false
 examples = [["/var/log/nginx/*.log"]]
+null = false
 description = """\
 Array of file patterns to include. [Globbing](#globbing) is supported.\
 """
 
 [sources.file.options.exclude]
 type = "[string]"
-null = false
 examples = [["/var/log/nginx/access.log"]]
+null = false
 description = """\
 Array of file patterns to exclude. [Globbing](#globbing) is supported. \
 *Takes precedence over the `include` option.*\
@@ -59,8 +69,8 @@ Array of file patterns to exclude. [Globbing](#globbing) is supported. \
 [sources.file.options.file_key]
 type = "string"
 category = "Context"
-null = false
 default = "file"
+null = false
 section = "context"
 description = """\
 The key name added to each event with the full path of the file.\
@@ -90,8 +100,8 @@ Vector searches for files.\
 name = "host_key"
 type = "string"
 category = "Context"
-null = false
 default = "host"
+null = false
 section = "context"
 description = """\
 The key name added to each event representing the current host.\
@@ -99,9 +109,9 @@ The key name added to each event representing the current host.\
 
 [sources.file.options.ignore_older]
 type = "int"
-unit = "seconds"
-null = true
 examples = [86400]
+null = true
+unit = "seconds"
 description = """\
 Ignore files with a data modification date that does not exceed this age.\
 """
@@ -526,7 +536,6 @@ the metric will be incremented by 1 regardless of the `field` value.\
 
 [transforms.log_to_metric.options.metrics.options.name]
 type = "string"
-default = "dynamic"
 examples = ["duration_total"]
 null = false
 description = """\
@@ -761,8 +770,10 @@ is the type. [`strftime` specifiers][url.strftime_specifiers] are supported for 
 batch_size = 1049000
 batch_timeout = 1
 beta = true
+buffer = true
 delivery_guarantee = "at_least_once"
 egress_method = "batching"
+healthcheck = true
 input_types = ["log"]
 rate_limit_duration = 1
 rate_limit_num = 5
@@ -777,10 +788,12 @@ write_to_description = "[AWS CloudWatch Logs][url.aws_cw_logs] via the [`PutLogE
 [sinks.aws_cloudwatch_logs.options.encoding]
 type = "string"
 category = "Requests"
-default = "dynamic"
 enum = ["json", "text"]
 null = true
-description = "The encoding format used to serialize the events before flushing."
+description = """\
+The encoding format used to serialize the events before flushing. The default \
+is dynamic based on if the event is structured or not.\
+"""
 
 [sinks.aws_cloudwatch_logs.options.group_name]
 type = "string"
@@ -818,8 +831,10 @@ description = "The [stream name][url.aws_cw_logs_stream_name] of the target Clou
 batch_size = 1049000
 batch_timeout = 1
 beta = true
+buffer = true
 delivery_guarantee = "at_least_once"
 egress_method = "batching"
+healthcheck = true
 input_types = ["log"]
 rate_limit_duration = 1
 rate_limit_num = 5
@@ -834,10 +849,12 @@ write_to_description = "[AWS Kinesis Data Stream][url.aws_kinesis_data_streams] 
 [sinks.aws_kinesis_streams.options.encoding]
 type = "string"
 category = "Requests"
-default = "dynamic"
 enum = ["json", "text"]
 null = true
-description = "The encoding format used to serialize the events before flushing."
+description = """\
+The encoding format used to serialize the events before flushing. The default \
+is dynamic based on if the event is structured or not.\
+"""
 
 [sinks.aws_kinesis_streams.options.partition_key_field]
 type = "string"
@@ -864,8 +881,10 @@ description = "The [stream name][url.aws_cw_logs_stream_name] of the target Kine
 batch_size = 10490000
 batch_timeout = 300
 beta = true
+buffer = true
 delivery_guarantee = "at_least_once"
 egress_method = "batching"
+healthcheck = true
 input_types = ["log"]
 rate_limit_duration = 1
 rate_limit_num = 5
@@ -894,8 +913,11 @@ description = "The compression type to use before writing data."
 type = "string"
 category = "Requests"
 enum = ["ndjson", "text"]
-null = false
-description = "The encoding format used to serialize the events before flushing."
+null = true
+description = """\
+The encoding format used to serialize the events before flushing. The default \
+is dynamic based on if the event is structured or not.\
+"""
 
 [sinks.aws_s3.options.filename_append_uuid]
 type = "bool"
@@ -950,8 +972,10 @@ description = "The [AWS region][url.aws_s3_regions] of the target S3 bucket."
 # sinks.blachole
 # ------------------------------------------------------------------------------
 [sinks.blackhole]
+buffer = false
 delivery_guarantee = "best_effort"
 egress_method = "streaming"
+healthcheck = true
 input_types = ["log", "metric"]
 write_to_description = """\
 a blackhole that simply discards data, designed for testing and \
@@ -968,17 +992,21 @@ description = "The number of events that must be received in order to print a su
 # sinks.console
 # ------------------------------------------------------------------------------
 [sinks.console]
+buffer = false
 delivery_guarantee = "best_effort"
 egress_method = "streaming"
+healthcheck = true
 input_types = ["log", "metric"]
 write_to_description = "the console, `STDOUT` or `STDERR`"
 
 [sinks.console.options.encoding]
 type = "string"
-default = "dynamic"
 enum = ["json", "text"]
 null = true
-description = "The encoding format used to serialize the events before writing."
+description = """\
+The encoding format used to serialize the events before flushing. The default \
+is dynamic based on if the event is structured or not.\
+"""
 
 [sinks.console.options.target]
 type = "string"
@@ -994,8 +1022,10 @@ description = "The [standard stream][url.standard_streams] to write to."
 batch_size = 10490000
 batch_timeout = 1
 beta = true
+buffer = true
 delivery_guarantee = "best_effort"
 egress_method = "batching"
+healthcheck = true
 input_types = ["log"]
 rate_limit_duration = 1
 rate_limit_num = 5
@@ -1035,8 +1065,10 @@ description = "Index name to write events to."
 [sinks.http]
 batch_size = 1049000
 batch_timeout = 5
+buffer = true
 delivery_guarantee = "at_least_once"
 egress_method = "batching"
+healthcheck = true
 input_types = ["log"]
 rate_limit_duration = 1
 rate_limit_num = 10
@@ -1074,7 +1106,10 @@ description = "The compression strategy used to compress the payload before send
 type = "string"
 enum = ["ndjson", "text"]
 null = false
-description = "The encoding format used to serialize the events before flushing."
+description = """\
+The encoding format used to serialize the events before flushing. The default \
+is dynamic based on if the event is structured or not.\
+"""
 
 [sinks.http.options.headers]
 type = "table"
@@ -1103,8 +1138,10 @@ description = "The full URI to make HTTP requests to. This should include the pr
 # sinks.kafka
 # ------------------------------------------------------------------------------
 [sinks.kafka]
+buffer = true
 delivery_guarantee = "at_least_once"
 egress_method = "streaming"
+healthcheck = true
 input_types = ["log"]
 service_provider = "Confluent"
 write_to_description = "[Apache Kafka][url.kafka] via the [Kafka protocol][url.kafka_protocol]"
@@ -1121,10 +1158,12 @@ to initially to bootstrap itself\
 
 [sinks.kafka.options.encoding]
 type = "string"
-default = "dynamic"
 enum = ["json", "text"]
 null = true
-description = "The encoding format used to serialize the events before flushing."
+description = """\
+The encoding format used to serialize the events before flushing. The default \
+is dynamic based on if the event is structured or not.\
+"""
 
 [sinks.kafka.options.key_field]
 type = "string"
@@ -1147,8 +1186,10 @@ description = "The Kafka topic name to write events to."
 # ------------------------------------------------------------------------------
 [sinks.prometheus]
 beta = true
-delivery_guarantee = "at_least_once"
+buffer = false
+delivery_guarantee = "best_effort"
 egress_method = "exposing"
+healthcheck = false
 input_types = ["metric"]
 write_to_description = "[Prometheus][url.prometheus] metrics service"
 
@@ -1158,14 +1199,25 @@ examples = ["0.0.0.0:9598"]
 null = false
 description = "The address to expose for scraping."
 
+[sinks.prometheus.options.buckets]
+type = "[float]"
+default = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+null = false
+unit = "seconds"
+description = """\
+Default buckets to use for [histogram][docs.metric_event.histogram] metrics.\
+"""
+
 # ------------------------------------------------------------------------------
 # sinks.splunk_hec
 # ------------------------------------------------------------------------------
 [sinks.splunk_hec]
 batch_size = 1049000
 batch_timeout = 1
+buffer = true
 delivery_guarantee = "at_least_once"
 egress_method = "batching"
+healthcheck = true
 input_types = ["log"]
 rate_limit_duration = 1
 rate_limit_num = 10
@@ -1179,10 +1231,12 @@ write_to_description = "a [Splunk HTTP Event Collector][url.splunk_hec]"
 [sinks.splunk_hec.options.encoding]
 type = "string"
 category = "Requests"
-default = "dynamic"
 enum = ["ndjson", "text"]
 null = true
-description = "The encoding format used to serialize the events before flushing."
+description = """\
+The encoding format used to serialize the events before flushing. The default \
+is dynamic based on if the event is structured or not.\
+"""
 
 [sinks.splunk_hec.options.host]
 type = "string"
@@ -1200,8 +1254,10 @@ description = "Your Splunk HEC token."
 # sinks.tcp
 # ------------------------------------------------------------------------------
 [sinks.tcp]
+buffer = true
 delivery_guarantee = "best_effort"
 egress_method = "streaming"
+healthcheck = true
 input_types = ["log"]
 write_to_description = "a TCP connection"
 
@@ -1214,17 +1270,21 @@ description = "The TCP address."
 [sinks.tcp.options.encoding]
 type = "string"
 category = "Requests"
-default = "dynamic"
 enum = ["json", "text"]
 null = true
-description = "The encoding format used to serialize the events before flushing."
+description = """\
+The encoding format used to serialize the events before flushing. The default \
+is dynamic based on if the event is structured or not.\
+"""
 
 # ------------------------------------------------------------------------------
 # sinks.vector
 # ------------------------------------------------------------------------------
 [sinks.vector]
+buffer = true
 delivery_guarantee = "best_effort"
 egress_method = "streaming"
+healthcheck = true
 input_types = ["log"]
 write_to_description = "another downstream Vector instance"
 
@@ -1348,6 +1408,13 @@ new_source = "https://github.com/timberio/vector/issues/new?labels=Type%3A+New+F
 new_transform = "https://github.com/timberio/vector/issues/new?labels=Type%3A+New+Feature"
 nginx = "https://www.nginx.com/"
 prometheus = "https://prometheus.io/"
+prometheus_counter = "https://prometheus.io/docs/concepts/metric_types/#counter"
+prometheus_gauge = "https://prometheus.io/docs/concepts/metric_types/#gauge"
+prometheus_high_cardinality = "https://prometheus.io/docs/practices/naming/#labels"
+prometheus_histogram = "https://prometheus.io/docs/concepts/metric_types/#histogram"
+prometheus_histograms_guide = "https://prometheus.io/docs/practices/histograms/"
+prometheus_summary = "https://prometheus.io/docs/concepts/metric_types/#summary"
+prometheus_text_based_exposition_format = "https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format"
 rdkafka = "https://github.com/edenhill/librdkafka"
 regex = "https://en.wikipedia.org/wiki/Regular_expression"
 regex_grouping_and_flags = "https://docs.rs/regex/1.1.7/regex/#grouping-and-flags"
@@ -1361,6 +1428,7 @@ rust_regex_syntax = "https://docs.rs/regex/1.1.7/regex/#syntax"
 splunk_hec = "http://dev.splunk.com/view/event-collector/SP-CAAAE6M"
 splunk_hec_setup = "https://docs.splunk.com/Documentation/Splunk/latest/Data/UsetheHTTPEventCollector"
 standard_streams = "https://en.wikipedia.org/wiki/Standard_streams"
+statsd_set = "https://github.com/statsd/statsd/blob/master/docs/metric_types.md#sets"
 strftime_specifiers = "https://docs.rs/chrono/0.3.1/chrono/format/strftime/index.html"
 syslog_5424 = "https://tools.ietf.org/html/rfc5424"
 systemd = "https://www.freedesktop.org/wiki/Software/systemd/"

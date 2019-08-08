@@ -22,49 +22,26 @@ The `console` sink [streams](#streaming) [`log`][docs.log_event] and [`metric`][
 {% code-tabs %}
 {% code-tabs-item title="vector.toml (example)" %}
 ```coffeescript
-[sinks.my_console_sink_id]
-  # REQUIRED - General
+[sinks.my_sink_id]
   type = "console" # must be: "console"
   inputs = ["my-source-id"]
   target = "stdout" # enum: "stdout" or "stderr"
   
-  # OPTIONAL - General
-  encoding = "json" # default, enum: "json" or "text"
-  
-  # OPTIONAL - Buffer
-  [sinks.my_console_sink_id.buffer]
-    type = "memory" # default, enum: "memory" or "disk"
-    when_full = "block" # default, enum: "block" or "drop_newest"
-    max_size = 104900000 # no default, bytes, relevant when type = "disk"
-    num_items = 500 # default, events, relevant when type = "memory"
+  encoding = "json" # no default, enum: "json" or "text"
 ```
 {% endcode-tabs-item %}
 {% code-tabs-item title="vector.toml (schema)" %}
 ```coffeescript
 [sinks.<sink-id>]
-  # REQUIRED - General
   type = "console"
   inputs = ["<string>", ...]
   target = {"stdout" | "stderr"}
-
-  # OPTIONAL - General
   encoding = {"json" | "text"}
-
-  # OPTIONAL - Buffer
-  [sinks.<sink-id>.buffer]
-    type = {"memory" | "disk"}
-    when_full = {"block" | "drop_newest"}
-    max_size = <int>
-    num_items = <int>
 ```
 {% endcode-tabs-item %}
 {% code-tabs-item title="vector.toml (specification)" %}
 ```coffeescript
 [sinks.console_sink]
-  #
-  # General
-  #
-
   # The component type
   # 
   # * required
@@ -87,49 +64,14 @@ The `console` sink [streams](#streaming) [`log`][docs.log_event] and [`metric`][
   target = "stdout"
   target = "stderr"
 
-  # The encoding format used to serialize the events before writing.
+  # The encoding format used to serialize the events before flushing. The default
+  # is dynamic based on if the event is structured or not.
   # 
   # * optional
-  # * default: "dynamic"
+  # * no default
   # * enum: "json" or "text"
   encoding = "json"
   encoding = "text"
-
-  #
-  # Buffer
-  #
-
-  [sinks.console_sink.buffer]
-    # The buffer's type / location. `disk` buffers are persistent and will be
-    # retained between restarts.
-    # 
-    # * optional
-    # * default: "memory"
-    # * enum: "memory" or "disk"
-    type = "memory"
-    type = "disk"
-
-    # The behavior when the buffer becomes full.
-    # 
-    # * optional
-    # * default: "block"
-    # * enum: "block" or "drop_newest"
-    when_full = "block"
-    when_full = "drop_newest"
-
-    # The maximum size of the buffer on the disk.
-    # 
-    # * optional
-    # * no default
-    # * unit: bytes
-    max_size = 104900000
-
-    # The maximum number of events allowed in the buffer.
-    # 
-    # * optional
-    # * default: 500
-    # * unit: events
-    num_items = 500
 ```
 {% endcode-tabs-item %}
 {% endcode-tabs %}
@@ -138,17 +80,12 @@ The `console` sink [streams](#streaming) [`log`][docs.log_event] and [`metric`][
 
 | Key  | Type  | Description |
 |:-----|:-----:|:------------|
-| **REQUIRED** - General | | |
+| **REQUIRED** | | |
 | `type` | `string` | The component type<br />`required` `must be: "console"` |
 | `inputs` | `[string]` | A list of upstream [source][docs.sources] or [transform][docs.transforms] IDs. See [Config Composition][docs.config_composition] for more info.<br />`required` `example: ["my-source-id"]` |
 | `target` | `string` | The [standard stream][url.standard_streams] to write to.<br />`required` `enum: "stdout" or "stderr"` |
-| **OPTIONAL** - General | | |
-| `encoding` | `string` | The encoding format used to serialize the events before writing. See [Encodings](#encodings) for more info.<br />`default: "dynamic"` `enum: "json" or "text"` |
-| **OPTIONAL** - Buffer | | |
-| `buffer.type` | `string` | The buffer's type / location. `disk` buffers are persistent and will be retained between restarts.<br />`default: "memory"` `enum: "memory" or "disk"` |
-| `buffer.when_full` | `string` | The behavior when the buffer becomes full.<br />`default: "block"` `enum: "block" or "drop_newest"` |
-| `buffer.max_size` | `int` | The maximum size of the buffer on the disk. Only relevant when type = "disk"<br />`no default` `example: 104900000` `unit: bytes` |
-| `buffer.num_items` | `int` | The maximum number of [events][docs.event] allowed in the buffer. Only relevant when type = "memory"<br />`default: 500` `unit: events` |
+| **OPTIONAL** | | |
+| `encoding` | `string` | The encoding format used to serialize the events before flushing. The default is dynamic based on if the event is structured or not. See [Encodings](#encodings) for more info.<br />`no default` `enum: "json" or "text"` |
 
 ## How It Works
 
@@ -167,6 +104,19 @@ the following options:
 | :------- | :---------- |
 | `json` | The payload will be encoded as a single JSON payload. |
 | `text` | The payload will be encoded as new line delimited text, each line representing the value of the `"message"` key. |
+
+#### Dynamic encoding
+
+By default, the `encoding` chosen is dynamic based on the explicit/implcit
+nature of the event's structure. For example, if this event is parsed (explicit
+structuring), Vector will use `json` to encode the structured data. If the event
+was not explicitly structured, the `text` encoding will be used.
+
+To further explain why Vector adopts this default, take the simple example of
+accepting data over the [`tcp` source][docs.tcp_source] and then connecting
+it directly to the `console` sink. It is less
+surprising that the outgoing data reflects the incoming data exactly since it
+was not explicitly structured.
 
 ### Environment Variables
 
@@ -222,12 +172,12 @@ issue, please:
 [docs.best_effort_delivery]: ../../../about/guarantees.md#best-effort-delivery
 [docs.config_composition]: ../../../usage/configuration/README.md#composition
 [docs.configuration.environment-variables]: ../../../usage/configuration#environment-variables
-[docs.event]: ../../../about/data-model/README.md#event
 [docs.log_event]: ../../../about/data-model/log.md
 [docs.metric_event]: ../../../about/data-model/metric.md
 [docs.monitoring_logs]: ../../../usage/administration/monitoring.md#logs
 [docs.sources]: ../../../usage/configuration/sources
 [docs.starting]: ../../../usage/administration/starting.md
+[docs.tcp_source]: ../../../usage/configuration/sources/tcp.md
 [docs.transforms]: ../../../usage/configuration/transforms
 [docs.troubleshooting]: ../../../usage/guides/troubleshooting.md
 [images.console_sink]: ../../../assets/console-sink.svg
