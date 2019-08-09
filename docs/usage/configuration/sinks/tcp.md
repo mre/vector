@@ -42,6 +42,7 @@ The `tcp` sink [streams](#streaming) [`log`][docs.log_event] events to a TCP con
   [sinks.my_tcp_sink_id.tls]
     enabled = false # default
     verify = true # default
+    ca_file = "/path/to/certificate_authority.crt" # no default
 ```
 {% endcode-tabs-item %}
 {% code-tabs-item title="vector.toml (schema)" %}
@@ -66,6 +67,7 @@ The `tcp` sink [streams](#streaming) [`log`][docs.log_event] events to a TCP con
   [sinks.<sink-id>.tls]
     enabled = <bool>
     verify = <bool>
+    ca_file = "<string>"
 ```
 {% endcode-tabs-item %}
 {% code-tabs-item title="vector.toml (specification)" %}
@@ -162,6 +164,12 @@ The `tcp` sink [streams](#streaming) [`log`][docs.log_event] events to a TCP con
     # * optional
     # * default: true
     verify = true
+
+    # Absolute path to additional CA certificate file, in PEM format.
+    #
+    # * optional
+    # * no default
+    ca_file = "/path/to/certificate_authority.crt"
 ```
 {% endcode-tabs-item %}
 {% endcode-tabs %}
@@ -186,6 +194,7 @@ The `tcp` sink [streams](#streaming) [`log`][docs.log_event] events to a TCP con
 | `tls.verify` | `bool` | If `true`, Vector will force certificate validation.
 Do NOT set this to `false` unless you know the risks of not verifying
 the remote certificate.<br />`default: true` |
+| `tls.ca_file` | `string` | Absolute path to additional CA certificate file, in PEM format.<br />`no default` `example: (see above)` |
 
 ## How It Works
 

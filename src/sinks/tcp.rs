@@ -6,7 +6,9 @@ use crate::{
 };
 use bytes::Bytes;
 use futures::{future, try_ready, Async, AsyncSink, Future, Poll, Sink, StartSend};
+use native_tls::Certificate;
 use serde::{Deserialize, Serialize};
+use std::io::Read;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::{Duration, Instant};
 use tokio::{
@@ -39,6 +41,7 @@ pub enum Encoding {
 pub struct TcpSinkTlsConfig {
     pub enabled: Option<bool>,
     pub verify: Option<bool>,
+    pub ca_file: Option<String>,
 }
 
 impl TcpSinkConfig {
@@ -62,10 +65,17 @@ impl SinkConfig for TcpSinkConfig {
             .ok_or_else(|| "Unable to resolve DNS for provided address".to_string())?;
 
         let tls = match self.tls {
-            Some(ref tls) => TcpSinkTls {
-                enabled: tls.enabled.unwrap_or(false),
-                verify: tls.verify.unwrap_or(true),
-            },
+            Some(ref tls) => {
+                let add_ca = match tls.ca_file {
+                    None => None,
+                    Some(ref filename) => Some(load_certificate(filename)?),
+                };
+                TcpSinkTls {
+                    enabled: tls.enabled.unwrap_or(false),
+                    verify: tls.verify.unwrap_or(true),
+                    add_ca,
+                }
+            }
             None => TcpSinkTls::default(),
         };
 
@@ -84,6 +94,30 @@ impl SinkConfig for TcpSinkConfig {
     fn input_type(&self) -> DataType {
         DataType::Log
     }
+}
+
+fn load_certificate(filename: &str) -> Result<Certificate, String> {
+    let mut cert_text = Vec::<u8>::new();
+    std::fs::File::open(filename)
+        .map_err(|err| {
+            format!(
+                "Could not open certificate authority file {:?}: {}",
+                filename, err
+            )
+        })?
+        .read_to_end(&mut cert_text)
+        .map_err(|err| {
+            format!(
+                "Could not read certificate authority file {:?}: {}",
+                filename, err
+            )
+        })?;
+    Certificate::from_pem(&cert_text).map_err(|err| {
+        format!(
+            "Could not parse certificate authority file {:?}: {}",
+            filename, err
+        )
+    })
 }
 
 pub struct TcpSink {
@@ -106,6 +140,7 @@ enum TcpSinkState {
 pub struct TcpSinkTls {
     enabled: bool,
     verify: bool,
+    add_ca: Option<Certificate>,
 }
 
 impl TcpSink {
@@ -152,12 +187,15 @@ impl TcpSink {
                         self.backoff = Self::fresh_backoff();
                         match self.tls.enabled {
                             true => {
-                                let c = native_tls::TlsConnector::builder()
-                                    .danger_accept_invalid_certs(!self.tls.verify)
-                                    .build()
-                                    .expect("Could not build TLS connector?!?");
+                                let mut connector = native_tls::TlsConnector::builder();
+                                connector.danger_accept_invalid_certs(!self.tls.verify);
+                                if let Some(ref certificate) = self.tls.add_ca {
+                                    connector.add_root_certificate(certificate.clone());
+                                }
+                                let connector =
+                                    connector.build().expect("Could not build TLS connector?!?");
                                 TcpSinkState::TlsConnecting(
-                                    TlsConnector::from(c).connect(&self.hostname, socket),
+                                    TlsConnector::from(connector).connect(&self.hostname, socket),
                                 )
                             }
                             false => TcpSinkState::Connected(Box::new(FramedWrite::new(
