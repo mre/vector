@@ -511,6 +511,17 @@ workflows:
           <<: *test-filters
       - test-stable:
           <<: *test-filters
+      - build-armv7-unknown-linux-gnueabihf-archive:
+          <<: *require-checks-and-tests
+      # - build-armv7-unknown-linux-musleabihf-archive:
+      #     <<: *tag-workflow-filters
+      #     <<: *require-checks-and-tests
+      - build-x86_64-unknown-linux-gnu-archive:
+          <<: *require-checks-and-tests
+      - build-x86_64-unknown-linux-musl-archive:
+          <<: *require-checks-and-tests
+      - build-x86_64-apple-darwin-archive:
+          <<: *require-checks-and-tests
 
   nightly:
     triggers:
