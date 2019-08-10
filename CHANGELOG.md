@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - file source: `data_dir` now falls back to global `data_dir` option if not specified
 - aws_kinesis_streams: Added configurable partition keys
 - journald: New source to read in logs from journald
+- topology: Added ability to disable individual sink healthchecks
 
 ### Changed
 
@@ -32,6 +33,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - aws_s3: Fixed #517 and trailing slash issues with the generated key.
 - aws_cloudwatch_logs: Fixes #586 and now dynamically creates streams if they do not exist.
+- topology: Reloading a configuration which removes both a sink and its source now works (#681). 
 
 ### Removed
 

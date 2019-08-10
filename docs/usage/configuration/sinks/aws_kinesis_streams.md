@@ -29,7 +29,7 @@ The `aws_kinesis_streams` sink [batches](#buffers-and-batches) [`log`][docs.log_
 {% code-tabs %}
 {% code-tabs-item title="vector.toml (example)" %}
 ```coffeescript
-[sinks.my_aws_kinesis_streams_sink_id]
+[sinks.my_sink_id]
   # REQUIRED - General
   type = "aws_kinesis_streams" # must be: "aws_kinesis_streams"
   inputs = ["my-source-id"]
@@ -37,6 +37,8 @@ The `aws_kinesis_streams` sink [batches](#buffers-and-batches) [`log`][docs.log_
   stream_name = "my-stream"
   
   # OPTIONAL - General
+  healthcheck = true # default
+  hostname = "127.0.0.0:5000"
   partition_key_field = "user_id" # no default
   
   # OPTIONAL - Batching
@@ -53,7 +55,7 @@ The `aws_kinesis_streams` sink [batches](#buffers-and-batches) [`log`][docs.log_
   retry_backoff_secs = 5 # default, seconds
   
   # OPTIONAL - Buffer
-  [sinks.my_aws_kinesis_streams_sink_id.buffer]
+  [sinks.my_sink_id.buffer]
     type = "memory" # default, enum: "memory" or "disk"
     when_full = "block" # default, enum: "block" or "drop_newest"
     max_size = 104900000 # no default, bytes, relevant when type = "disk"
@@ -70,6 +72,8 @@ The `aws_kinesis_streams` sink [batches](#buffers-and-batches) [`log`][docs.log_
   stream_name = "<string>"
 
   # OPTIONAL - General
+  healthcheck = <bool>
+  hostname = "<string>"
   partition_key_field = "<string>"
 
   # OPTIONAL - Batching
@@ -125,6 +129,18 @@ The `aws_kinesis_streams` sink [batches](#buffers-and-batches) [`log`][docs.log_
   # * required
   # * no default
   stream_name = "my-stream"
+
+  # Enables/disables the sink healthcheck upon start.
+  # 
+  # * optional
+  # * default: true
+  healthcheck = true
+
+  # Custom hostname to send requests to. Useful for testing.
+  # 
+  # * optional
+  # * no default
+  hostname = "127.0.0.0:5000"
 
   # The event field used as the Kinesis record's partition key value.
   # 
@@ -252,10 +268,12 @@ The `aws_kinesis_streams` sink [batches](#buffers-and-batches) [`log`][docs.log_
 | `region` | `string` | The [AWS region][url.aws_cw_logs_regions] of the target Kinesis stream resides.<br />`required` `example: "us-east-1"` |
 | `stream_name` | `string` | The [stream name][url.aws_cw_logs_stream_name] of the target Kinesis Logs stream.<br />`required` `example: "my-stream"` |
 | **OPTIONAL** - General | | |
-| `partition_key_field` | `string` | The event field used as the Kinesis record's partition key value. See [Partitioning](#partitioning) and [Missing keys or blank values](#missing-keys-or-blank-values) for more info.<br />`no default` `example: "user_id"` |
+| `healthcheck` | `bool` | Enables/disables the sink healthcheck upon start. See [Health Checks](#health-checks) for more info.<br />`default: true` |
+| `hostname` | `string` | Custom hostname to send requests to. Useful for testing.<br />`default: "<aws-service-hostname>"` |
+| `partition_key_field` | `string` | The event field used as the Kinesis record's partition key value. See [Partitioning](#partitioning) for more info.<br />`no default` `example: "user_id"` |
 | **OPTIONAL** - Batching | | |
-| `batch_size` | `int` | The maximum size of a batch before it is flushed. See [Batch flushing](#batch-flushing) for more info.<br />`default: 1049000` `unit: bytes` |
-| `batch_timeout` | `int` | The maximum age of a batch before it is flushed. See [Batch flushing](#batch-flushing) for more info.<br />`default: 1` `unit: seconds` |
+| `batch_size` | `int` | The maximum size of a batch before it is flushed. See [Buffers & Batches](#buffers-batches) for more info.<br />`default: 1049000` `unit: bytes` |
+| `batch_timeout` | `int` | The maximum age of a batch before it is flushed. See [Buffers & Batches](#buffers-batches) for more info.<br />`default: 1` `unit: seconds` |
 | **OPTIONAL** - Requests | | |
 | `encoding` | `string` | The encoding format used to serialize the events before flushing. The default is dynamic based on if the event is structured or not. See [Encodings](#encodings) for more info.<br />`no default` `enum: "json" or "text"` |
 | `rate_limit_duration` | `int` | The window used for the `request_rate_limit_num` option See [Rate Limits](#rate-limits) for more info.<br />`default: 1` `unit: seconds` |
@@ -373,6 +391,19 @@ the following options:
 | `json` | The payload will be encoded as a single JSON payload. |
 | `text` | The payload will be encoded as new line delimited text, each line representing the value of the `"message"` key. |
 
+#### Dynamic encoding
+
+By default, the `encoding` chosen is dynamic based on the explicit/implcit
+nature of the event's structure. For example, if this event is parsed (explicit
+structuring), Vector will use `json` to encode the structured data. If the event
+was not explicitly structured, the `text` encoding will be used.
+
+To further explain why Vector adopts this default, take the simple example of
+accepting data over the [`tcp` source][docs.tcp_source] and then connecting
+it directly to the `aws_kinesis_streams` sink. It is less
+surprising that the outgoing data reflects the incoming data exactly since it
+was not explicitly structured.
+
 ### Environment Variables
 
 Environment variables are supported through all of Vector's configuration.
@@ -384,19 +415,19 @@ section.
 
 ### Health Checks
 
-Upon [starting][docs.starting], Vector will perform a simple health check
-against this sink. The ensures that the downstream service is healthy and
-reachable.
-By default, if the health check fails an error will be logged and
-Vector will proceed to start. If you'd like to exit immediately upomn healt
-check failure, you can pass the `--require-healthy` flag:
+Health checks ensure that the downstream service is accessible and ready to
+accept data. This check is performed upon sink initialization.
+
+If the health check fails an error will be logged and Vector will proceed to
+start. If you'd like to exit immediately upon health check failure, you can
+pass the `--require-healthy` flag:
 
 ```bash
 vector --config /etc/vector/vector.toml --require-healthy
 ```
 
-Be careful when doing this, one unhealthy sink can prevent other healthy sinks
-from processing data at all.
+And finally, if you'd like to disable health checks entirely for this sink
+you can set the `healthcheck` option to `false`.
 
 ### Partitioning
 
@@ -497,7 +528,7 @@ issue, please:
 [docs.monitoring.logs]: ../../../usage/administration/monitoring.md#logs
 [docs.monitoring_logs]: ../../../usage/administration/monitoring.md#logs
 [docs.sources]: ../../../usage/configuration/sources
-[docs.starting]: ../../../usage/administration/starting.md
+[docs.tcp_source]: ../../../usage/configuration/sources/tcp.md
 [docs.transforms]: ../../../usage/configuration/transforms
 [docs.troubleshooting]: ../../../usage/guides/troubleshooting.md
 [images.aws_kinesis_streams_sink]: ../../../assets/aws_kinesis_streams-sink.svg
